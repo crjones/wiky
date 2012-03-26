@@ -14,13 +14,13 @@ module Wiky
   
       line = lines[i];
       
-      if (line.match(/^===/)!=nil and line.match(/===$/)!=nil)
+      if (line.match(/(^={1,6})(.*?)(={1,6})\s*$/) != nil)
         
-        html += "<h2>#{line[3..-4]}</h2>";
-
-      elsif (line.match(/^==/)!=nil and line.match(/==$/)!=nil)
-
-        html += "<h3>#{line[2..-3]}</h3>";
+        match = line.match(/(^={1,6})(.*?)(={1,6})\s*$/)
+        
+        level = (match[1].length <= match[3].length) ? match[1].length : match[3].length
+        
+        html += process_header(level, match[2])
 
       elsif (line.match(/^:+/)!=nil)
 
@@ -78,6 +78,11 @@ module Wiky
   end
   
   private
+  
+  def self.process_header(level, text)
+    "<h#{level}>" + text + "</h#{level}>"
+  end 
+  
   def self.process_indent(lines,start_index,end_index)
     i = start_index
   
