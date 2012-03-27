@@ -1,369 +1,387 @@
 module Wiky
-  def self.get_attachments(wikitext)
-    return [] if wikitext == nil
-    return wikitext.scan(/\[\[File:[^\]\n\r ]+\]\]/).map { |img| img[7..-3] }
-  end
   
-  def self.process(wikitext)
-    lines = wikitext.split(/\r?\n/)
+  class Wikitext
+    attr_accessor :renderer
     
-    html = ""
-    
-    i = 0
-    while i < lines.length
-  
-      line = lines[i];
-      
-      if (line.match(/(^={1,6})(.*?)(={1,6})\s*$/) != nil)
-        
-        match = line.match(/(^={1,6})(.*?)(={1,6})\s*$/)
-        
-        level = (match[1].length <= match[3].length) ? match[1].length : match[3].length
-        
-        html += process_header(level, match[2])
-
-      elsif (line.match(/^:+/)!=nil)
-
-        # find start line and ending line
-        start = i;
-        while (i < lines.length and lines[i].match(/^\:+/)!=nil) 
-          i += 1
-        end
-        
-        i -= 1
-        
-        html += self.process_indent(lines,start,i);
-
-      elsif (line.match(/^----+(\s*)$/)!=nil)
-      
-        html += "<hr/>"
-      
-      elsif (line.match(/^(\*+) /)!=nil)
-
-        # find start line and ending line
-        start = i;
-        while (i < lines.length && lines[i].match(/^(\*+|\#\#+)\:? /)!=nil) 
-          i += 1
-        end
-        
-        i -= 1
-        
-        html += self.process_bullet_point(lines,start,i);
-
-      elsif (line.match(/^(\#+) /)!=nil)
-      
-        # find start line and ending line
-        start = i;
-        while (i < lines.length && lines[i].match(/^(\#+|\*\*+)\:? /)!=nil)
-          i += 1
-        end
-        
-        i -= 1
-        
-        html += self.process_bullet_point(lines,start,i);
-      
-      else 
-      
-        html += self.process_normal(line);
-      
-      end
-      
-      html += "<br/>\n";
-      i += 1
-      
+    def initialize(renderer = Wiky::Render::HTML)
+      self.renderer = renderer
+      # self.renderer.init(renderer)
     end
     
-    return html;
+    def self.get_attachments(wikitext)
+      return [] if wikitext == nil
+      return wikitext.scan(/\[\[File:[^\]\n\r ]+\]\]/).map { |img| img[7..-3] }
+    end
+  
+    def process(wikitext)
+      lines = wikitext.split(/\r?\n/)
     
-  end
-  
-  private
-  
-  def self.process_header(level, text)
-    "<h#{level}>" + text + "</h#{level}>"
-  end 
-  
-  def self.process_indent(lines,start_index,end_index)
-    i = start_index
-  
-    html = "<dl>"
+      html = ""
     
-    while i <= end_index
+      i = 0
+      while i < lines.length
+  
+        line = lines[i];
       
-      html += "<dd>"
-      
-      this_count = lines[i].match(/^(\:+)/)[0].length
-      
-      html += self.process_normal(lines[i][this_count..-1])
-      
-      begin
-        nested_end = i
-        j = i + 1
-        while j <= end_index
-          nested_count = lines[j].match(/^(\:+)/)[0].length
-          if (nested_count <= this_count) 
-            break
-          else 
-            nested_end = j
+        if (line.match(/(^={1,6})(.*?)(={1,6})\s*$/) != nil)
+        
+          match = line.match(/(^={1,6})(.*?)(={1,6})\s*$/)
+        
+          level = (match[1].length <= match[3].length) ? match[1].length : match[3].length
+        
+          html += renderer.process_header(level, match[2])
+
+        elsif (line.match(/^:+/)!=nil)
+
+          # find start line and ending line
+          start = i;
+          while (i < lines.length and lines[i].match(/^\:+/)!=nil) 
+            i += 1
           end
-          j += 1
-        end
         
-        if (nested_end > i) 
-          html += self.process_indent(lines,i+1,nested_end)
-          i = nested_end
+          i -= 1
+        
+          html += renderer.process_indent(lines,start,i);
+
+        elsif (line.match(/^----+(\s*)$/)!=nil)
+      
+          html += "<hr/>"
+      
+        elsif (line.match(/^(\*+) /)!=nil)
+
+          # find start line and ending line
+          start = i;
+          while (i < lines.length && lines[i].match(/^(\*+|\#\#+)\:? /)!=nil) 
+            i += 1
+          end
+        
+          i -= 1
+        
+          html += renderer.process_bullet_point(lines,start,i);
+
+        elsif (line.match(/^(\#+) /)!=nil)
+      
+          # find start line and ending line
+          start = i;
+          while (i < lines.length && lines[i].match(/^(\#+|\*\*+)\:? /)!=nil)
+            i += 1
+          end
+        
+          i -= 1
+        
+          html += renderer.process_bullet_point(lines,start,i);
+      
+        else 
+      
+          html += renderer.process_normal(line);
+      
         end
+      
+        html += "<br/>\n";
+        i += 1
+      
       end
-      
-      html += "</dd>"
-      i += 1
-      
-    end
     
-    html += "</dl>"
-    return html
+      return html;
+    
+    end
   end
   
-  def self.process_bullet_point(lines,start_index,end_index)
+
+  
+  module Render
+    class HTML
+      attr_accessor :renderer
+      
+      def init(renderer)
+        self.renderer = renderer
+      end
+      
+      def self.process_header(level, text)
+        "<h#{level}>" + text + "</h#{level}>"
+      end 
+  
+      def self.process_indent(lines,start_index,end_index)
+        i = start_index
+  
+        html = "<dl>"
+    
+        while i <= end_index
+      
+          html += "<dd>"
+      
+          this_count = lines[i].match(/^(\:+)/)[0].length
+      
+          html += self.process_normal(lines[i][this_count..-1])
+      
+          begin
+            nested_end = i
+            j = i + 1
+            while j <= end_index
+              nested_count = lines[j].match(/^(\:+)/)[0].length
+              if (nested_count <= this_count) 
+                break
+              else 
+                nested_end = j
+              end
+              j += 1
+            end
+        
+            if (nested_end > i) 
+              html += self.process_indent(lines,i+1,nested_end)
+              i = nested_end
+            end
+          end
+      
+          html += "</dd>"
+          i += 1
+      
+        end
+    
+        html += "</dl>"
+        return html
+      end
+  
+      def self.process_bullet_point(lines,start_index,end_index)
    
-    i = start_index
+        i = start_index
     
-    html = (lines[start_index][0].chr=='*')?"<ul>":"<ol>"
+        html = (lines[start_index][0].chr=='*') ? "<ul>" : "<ol>"
     
     
-    while i <= end_index
+        while i <= end_index
       
-      html += "<li>"
+          html += "<li>"
       
-      this_count = lines[i].match(/^(\*+|\#+) /)[1].length
+          this_count = lines[i].match(/^(\*+|\#+) /)[1].length
       
-      html += self.process_normal(lines[i][this_count+1..-1])
+          html += self.process_normal(lines[i][this_count+1..-1])
       
-      # continue previous with #:
-      begin
-        nested_end = i
-        j = i + 1
-        while j <= end_index
+          # continue previous with #:
+          begin
+            nested_end = i
+            j = i + 1
+            while j <= end_index
   
-          nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
+              nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
           
-          if (nested_count < this_count) 
+              if (nested_count < this_count) 
             
-            break;
+                break;
             
-          else
+              else
             
-            if (lines[j][nested_count].chr == ':') 
-              html += "<br/>" + wiky.process_normal(lines[j][nested_count + 2..-1])
-              nested_end = j
-            else
-              break
+                if (lines[j][nested_count].chr == ':') 
+                  html += "<br/>" + wiky.process_normal(lines[j][nested_count + 2..-1])
+                  nested_end = j
+                else
+                  break
+                end
+            
+              end
+          
+              j += 1
             end
-            
+        
+            i = nested_end
           end
-          
-          j += 1
-        end
-        
-        i = nested_end
-      end
       
-      # nested bullet point
-      begin
-        nested_end = i;
-        j = i + 1
-        while j <= end_index
+          # nested bullet point
+          begin
+            nested_end = i;
+            j = i + 1
+            while j <= end_index
         
-          nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
-          if (nested_count <= this_count) 
-            break
+              nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
+              if (nested_count <= this_count) 
+                break
+              else 
+                nested_end = j
+              end
+          
+              j += 1
+            end
+        
+            if (nested_end > i) 
+              html += self.process_bullet_point(lines, i + 1, nested_end)
+              i = nested_end
+            end
+          end
+      
+          # continue previous with #:
+          begin
+            nested_end = i
+            j = i + 1
+            while j <= end_index
+  
+              nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
+          
+              if (nested_count < this_count) 
+            
+                break;
+            
+              else
+            
+                if (lines[j][nested_count].chr == ':') 
+                  html += "<br/>" + wiky.process_normal(lines[j][nested_count + 2..-1])
+                  nested_end = j
+                else
+                  break
+                end
+            
+              end
+          
+              j += 1
+            end
+        
+            i = nested_end
+          end
+      
+      
+      
+          html += "</li>";
+          i += 1
+        end
+    
+        html += (lines[start_index][0].chr=='*') ? "</ul>" : "</ol>"
+        return html;
+      end
+  
+      def self.process_video(url)
+    
+
+        if (url.match(/^(https?:\/\/)?(www.)?youtube.com\//) == nil)
+          return "<b>"+url+" is an invalid YouTube URL</b>";
+        end
+    
+        if ((result = url.match(/^(https?:\/\/)?(www.)?youtube.com\/watch\?(.*)v=([^&]+)/)) != nil)
+          url = "http://www.youtube.com/embed/"+result[4];
+        end
+    
+    
+        return '<iframe width="480" height="390" src="'+url+'" frameborder="0" allowfullscreen></iframe>';
+
+      end
+  
+      def self.process_image(wikitext)
+        index = wikitext.index(" ") || -1
+        url = wikitext
+        label = ""
+    
+        if (index > -1) 
+
+          url = wikitext[0..index]
+          label = wikitext[index+1..-1]
+    
+        end
+    
+        return "<img src='"+url+"' alt=\""+label+"\" />"
+      end
+  
+      def self.process_url(wikitext)
+        url = wikitext.split(" ")
+        
+        if (url.length == 1) 
+    
+          return "<a target='"+url[0]+"' href='"+url[0]+"' style='background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll right center transparent;padding-right: 13px;'></a>"
+    
+        else
+          return "<a target='"+url[0]+"' href='"+url[0]+"' style='background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll right center transparent;padding-right: 13px;'>"+url[1]+"</a>"
+    
+        end
+      end
+  
+      def self.process_normal(wikitext)
+
+        # Image
+        index = wikitext.index("[[File:") || -1
+        end_index = wikitext.index("]]", index + 7) || -1
+        while (index > -1 and end_index > -1) 
+    
+          new_wikitext = ""
+          new_wikitext += wikitext[0..index-1] if index > 0
+          new_wikitext += self.process_image(wikitext[index+7..end_index-1])
+          new_wikitext += wikitext[end_index+2..-1] if (end_index+2) < (wikitext.length-1)
+    
+          wikitext = new_wikitext
+    
+          index = wikitext.index("[[File:",end_index+1) || -1
+          end_index = wikitext.index("]]", index + 7) || -1
+        end
+    
+        # Video
+        index = wikitext.index("[[Video:") || -1
+        end_index = wikitext.index("]]", index + 8) || -1
+        while (index > -1 and end_index > -1) 
+    
+          new_wikitext = ""
+          new_wikitext += wikitext[0..index-1] if index > 0
+          new_wikitext += self.process_video(wikitext[index+8..end_index-1])
+          new_wikitext += wikitext[end_index+2..-1] if (end_index+2) < (wikitext.length-1)
+    
+          wikitext = new_wikitext
+    
+          index = wikitext.index("[[Video:",end_index+1) || -1
+          end_index = wikitext.index("]]", index + 8) || -1
+        end
+    
+    
+        # URL
+        ["http","ftp","news"].each { |protocol|
+    
+          index = wikitext.index("["+protocol+"://") || -1
+          end_index = wikitext.index("]", index + 1) || -1
+          while (index > -1 and end_index > -1) 
+      
+            new_wikitext = ""
+            new_wikitext += wikitext[0..index-1] if index > 0
+            new_wikitext += self.process_url(wikitext[index+1..end_index-1])
+            new_wikitext += wikitext[end_index+1..-1] if (end_index+1) < (wikitext.length-1)
+      
+            wikitext = new_wikitext
+      
+            index = wikitext.index("["+protocol+"://",end_index+1) || -1
+            end_index = wikitext.index("]", index + 1) || -1
+        
+          end
+        }
+    
+        count_b = 0;
+        index = wikitext.index("'''") || -1
+        while(index > -1) 
+      
+          if ((count_b%2)==0) 
+            wikitext.sub!(/'''/,"<b>")
           else 
-            nested_end = j
+            wikitext.sub!(/'''/,"</b>")
           end
-          
-          j += 1
-        end
-        
-        if (nested_end > i) 
-          html += self.process_bullet_point(lines, i + 1, nested_end)
-          i = nested_end
-        end
-      end
       
-      # continue previous with #:
-      begin
-        nested_end = i
-        j = i + 1
-        while j <= end_index
-  
-          nested_count = lines[j].match(/^(\*+|\#+)\:? /)[1].length
-          
-          if (nested_count < this_count) 
-            
-            break;
-            
-          else
-            
-            if (lines[j][nested_count].chr == ':') 
-              html += "<br/>" + wiky.process_normal(lines[j][nested_count + 2..-1])
-              nested_end = j
-            else
-              break
-            end
-            
+          count_b += 1
+      
+          index = wikitext.index("'''",index) || -1
+      
+        end
+    
+        count_i = 0;
+        index = wikitext.index("''") || -1
+        while(index > -1) 
+      
+          if ((count_i%2)==0) 
+            wikitext.sub!(/''/,"<i>")
+          else 
+            wikitext.sub!(/''/,"</i>")
           end
-          
-          j += 1
+      
+          count_i += 1
+      
+          index = wikitext.index("''",index) || -1
         end
-        
-        i = nested_end
+    
+        wikitext.gsub!(/<\/b><\/i>/,"</i></b>");
+    
+        return wikitext;
       end
-      
-      
-      
-      html += "</li>";
-      i += 1
-    end
-    
-    html += (lines[start_index][0].chr=='*')?"</ul>":"</ol>"
-    return html;
-  end
-  
-  def self.process_video(url)
-    
-
-    if (url.match(/^(https?:\/\/)?(www.)?youtube.com\//) == nil)
-      return "<b>"+url+" is an invalid YouTube URL</b>";
-    end
-    
-    if ((result = url.match(/^(https?:\/\/)?(www.)?youtube.com\/watch\?(.*)v=([^&]+)/)) != nil)
-      url = "http://www.youtube.com/embed/"+result[4];
-    end
-    
-    
-    return '<iframe width="480" height="390" src="'+url+'" frameborder="0" allowfullscreen></iframe>';
-
-  end
-  
-  def self.process_image(wikitext)
-    index = wikitext.index(" ") || -1
-    url = wikitext
-    label = ""
-    
-    if (index > -1) 
-
-      url = wikitext[0..index]
-      label = wikitext[index+1..-1]
-    
-    end
-    
-    return "<img src='"+url+"' alt=\""+label+"\" />"
-  end
-  
-  def self.process_url(wikitext)
-    index = wikitext.index(" ") || -1
-    
-    if (index == -1) 
-    
-      return "<a target='"+txt+"' href='"+txt+"' style='background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll right center transparent;padding-right: 13px;'></a>"
-    
-    else
-    
-      url = wikitext[0..index]
-      label = wikitext[index+1..-1]
-      return "<a target='"+url+"' href='"+url+"' style='background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAFZJREFUeF59z4EJADEIQ1F36k7u5E7ZKXeUQPACJ3wK7UNokVxVk9kHnQH7bY9hbDyDhNXgjpRLqFlo4M2GgfyJHhjq8V4agfrgPQX3JtJQGbofmCHgA/nAKks+JAjFAAAAAElFTkSuQmCC\") no-repeat scroll right center transparent;padding-right: 13px;'>"+label+"</a>"
-    
     end
   end
   
-  def self.process_normal(wikitext)
-
-    # Image
-    index = wikitext.index("[[File:") || -1
-    end_index = wikitext.index("]]", index + 7) || -1
-    while (index > -1 and end_index > -1) 
-    
-      new_wikitext = ""
-      new_wikitext += wikitext[0..index-1] if index > 0
-      new_wikitext += self.process_image(wikitext[index+7..end_index-1])
-      new_wikitext += wikitext[end_index+2..-1] if (end_index+2) < (wikitext.length-1)
-    
-      wikitext = new_wikitext
-    
-      index = wikitext.index("[[File:",end_index+1) || -1
-      end_index = wikitext.index("]]", index + 7) || -1
-    end
-    
-    # Video
-    index = wikitext.index("[[Video:") || -1
-    end_index = wikitext.index("]]", index + 8) || -1
-    while (index > -1 and end_index > -1) 
-    
-      new_wikitext = ""
-      new_wikitext += wikitext[0..index-1] if index > 0
-      new_wikitext += self.process_video(wikitext[index+8..end_index-1])
-      new_wikitext += wikitext[end_index+2..-1] if (end_index+2) < (wikitext.length-1)
-    
-      wikitext = new_wikitext
-    
-      index = wikitext.index("[[Video:",end_index+1) || -1
-      end_index = wikitext.index("]]", index + 8) || -1
-    end
-    
-    
-    # URL
-    ["http","ftp","news"].each { |protocol|
-    
-      index = wikitext.index("["+protocol+"://") || -1
-      end_index = wikitext.index("]", index + 1) || -1
-      while (index > -1 and end_index > -1) 
-      
-        new_wikitext = ""
-        new_wikitext += wikitext[0..index-1] if index > 0
-        new_wikitext += self.process_url(wikitext[index+1..end_index-1])
-        new_wikitext += wikitext[end_index+1..-1] if (end_index+1) < (wikitext.length-1)
-      
-        wikitext = new_wikitext
-      
-        index = wikitext.index("["+protocol+"://",end_index+1) || -1
-        end_index = wikitext.index("]", index + 1) || -1
-        
-      end
-    }
-    
-    count_b = 0;
-    index = wikitext.index("'''") || -1
-    while(index > -1) 
-      
-      if ((count_b%2)==0) 
-        wikitext.sub!(/'''/,"<b>")
-      else 
-        wikitext.sub!(/'''/,"</b>")
-      end
-      
-      count_b += 1
-      
-      index = wikitext.index("'''",index) || -1
-      
-    end
-    
-    count_i = 0;
-    index = wikitext.index("''") || -1
-    while(index > -1) 
-      
-      if ((count_i%2)==0) 
-        wikitext.sub!(/''/,"<i>")
-      else 
-        wikitext.sub!(/''/,"</i>")
-      end
-      
-      count_i += 1
-      
-      index = wikitext.index("''",index) || -1
-    end
-    
-    wikitext.gsub!(/<\/b><\/i>/,"</i></b>");
-    
-    return wikitext;
-  end
 end
